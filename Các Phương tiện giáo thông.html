@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Game Giao Thông - Laptop</title>
+
+<style>
+body{
+margin:0;
+font-family: Arial;
+background: linear-gradient(#dff6ff,#e8ffe8);
+display:flex;
+justify-content:center;
+}
+
+.app{
+width:1280px;
+height:720px;
+background:white;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+border-radius:20px;
+position:relative;
+overflow:hidden;
+display:flex;
+flex-direction:column;
+}
+
+.header{
+background:#2e7d32;
+color:white;
+text-align:center;
+padding:12px;
+font-size:20px;
+font-weight:bold;
+}
+
+.score{
+text-align:center;
+padding:8px;
+background:#f1f8e9;
+font-size:18px;
+}
+
+.zones{
+display:flex;
+flex:1;
+gap:10px;
+padding:12px;
+}
+
+.zone{
+flex:1;
+border:3px dashed #999;
+border-radius:15px;
+background:#fafafa;
+display:flex;
+flex-wrap:wrap;
+align-content:flex-start;
+gap:10px;
+padding:10px;
+transition:0.2s;
+}
+
+.zone:hover{
+background:#f0fff0;
+}
+
+.zone-title{
+width:100%;
+text-align:center;
+font-weight:bold;
+margin-bottom:5px;
+}
+
+.env{
+font-size:100px;
+width:100%;
+text-align:center;
+}
+
+.sky{ color:#4fc3f7; }
+.sea{ color:#0288d1; }
+.road{ color:#6d4c41; }
+
+.items{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:12px;
+padding:12px;
+background:#f9f9f9;
+border-top:1px solid #ddd;
+}
+
+.item{
+font-size:60px;
+padding:8px;
+border-radius:12px;
+background:white;
+box-shadow:0 3px 8px rgba(0,0,0,0.15);
+cursor:grab;
+transition:0.2s;
+user-select:none;
+}
+
+.item:hover{
+transform:scale(1.1);
+}
+
+.item:active{
+transform:scale(1.2);
+}
+
+.ai{
+position:absolute;
+bottom:80px;
+left:20px;
+right:20px;
+background:white;
+padding:10px;
+border-radius:12px;
+box-shadow:0 5px 15px rgba(0,0,0,0.2);
+display:none;
+}
+
+#wrong{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:140px;
+color:red;
+display:none;
+animation:pop 0.3s ease;
+}
+
+@keyframes pop{
+0%{transform:translate(-50%,-50%) scale(0);}
+50%{transform:translate(-50%,-50%) scale(1.4);}
+100%{transform:translate(-50%,-50%) scale(1);}
+}
+
+.win{
+position:absolute;
+inset:0;
+background:rgba(0,0,0,0.7);
+display:none;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+color:white;
+font-size:28px;
+}
+
+.win button{
+margin-top:15px;
+padding:12px 18px;
+border:none;
+border-radius:10px;
+background:#4caf50;
+color:white;
+font-size:18px;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="header"> Các phương tiện giao thông</div>
+
+<div class="score">⭐ Điểm: <span id="score">0</span></div>
+
+<div class="zones">
+
+<div class="zone" id="sky" ondrop="drop(event,'sky')" ondragover="allowDrop(event)">
+<div class="env sky">🌤️</div>
+</div>
+
+<div class="zone" id="sea" ondrop="drop(event,'sea')" ondragover="allowDrop(event)">
+<div class="env sea">🌊</div>
+</div>
+
+<div class="zone" id="road" ondrop="drop(event,'road')" ondragover="allowDrop(event)">
+<div class="env road">🛣️</div>
+</div>
+
+</div>
+
+<div class="items">
+
+<div class="item" draggable="true" data-type="sky">✈️</div>
+<div class="item" draggable="true" data-type="sky">🚁</div>
+
+<div class="item" draggable="true" data-type="sea">🚢</div>
+<div class="item" draggable="true" data-type="sea">⛵</div>
+
+<div class="item" draggable="true" data-type="road">🚗</div>
+<div class="item" draggable="true" data-type="road">🚌</div>
+<div class="item" draggable="true" data-type="road">🚲</div>
+
+</div>
+
+<div class="ai" id="aiBox"></div>
+<div id="wrong">❌</div>
+
+<div class="win" id="win">
+🎉 Hoàn thành rồi! 🎉
+<button onclick="reset()">Chơi lại</button>
+</div>
+
+</div>
+
+<script>
+
+let dragged = null;
+let score = 0;
+const totalItems = document.querySelectorAll('.item').length;
+
+document.querySelectorAll('.item').forEach(el=>{
+el.addEventListener('dragstart',()=>{
+dragged = el;
+play("drag");
+});
+});
+
+function allowDrop(e){
+e.preventDefault();
+}
+
+function drop(e, zone){
+e.preventDefault();
+
+if(!dragged) return;
+
+let type = dragged.dataset.type;
+let targetZone = e.target.closest('.zone');
+if(!targetZone) return;
+
+if(type === zone){
+
+targetZone.appendChild(dragged);
+
+score += 10;
+document.getElementById("score").innerText = score;
+
+play(type);
+speak("Đúng rồi");
+
+checkWin();
+
+}else{
+
+showWrong();
+play("wrong");
+speak("Sai rồi");
+showAI("Sai rồi, thử lại nhé!");
+}
+}
+
+/* AI */
+function showAI(text){
+let box = document.getElementById("aiBox");
+box.innerText = text;
+box.style.display = "block";
+setTimeout(()=>box.style.display="none",2000);
+}
+
+/* WRONG */
+function showWrong(){
+let x = document.getElementById("wrong");
+x.style.display = "block";
+setTimeout(()=>x.style.display="none",500);
+}
+
+/* WIN */
+function checkWin(){
+let done = document.querySelectorAll('.zone .item').length;
+
+if(done === totalItems){
+document.getElementById("win").style.display = "flex";
+}
+}
+
+/* RESET */
+function reset(){
+
+score = 0;
+document.getElementById("score").innerText = 0;
+
+let itemsBox = document.querySelector(".items");
+
+document.querySelectorAll('.zone .item').forEach(el=>{
+itemsBox.appendChild(el);
+});
+
+document.getElementById("win").style.display = "none";
+hideAI();
+}
+
+/* SOUND */
+function play(type){
+let ctx = new (window.AudioContext || window.webkitAudioContext)();
+let o = ctx.createOscillator();
+let g = ctx.createGain();
+
+o.connect(g);
+g.connect(ctx.destination);
+
+let f = 300;
+
+if(type==="sky") f=700;
+else if(type==="sea") f=250;
+else if(type==="road") f=400;
+else if(type==="drag") f=120;
+else if(type==="wrong") f=70;
+
+o.frequency.value = f;
+o.type = "sine";
+
+g.gain.setValueAtTime(0.2, ctx.currentTime);
+g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.4);
+
+o.start();
+o.stop(ctx.currentTime+0.4);
+}
+
+/* VOICE */
+function speak(text){
+let s = new SpeechSynthesisUtterance(text);
+s.lang = "vi-VN";
+speechSynthesis.speak(s);
+}
+
+function hideAI(){
+document.getElementById("aiBox").style.display = "none";
+}
+
+</script>
+
+</body>
+</html>
